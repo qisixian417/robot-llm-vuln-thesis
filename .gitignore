@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# 数据文件
+data/raw/repos/*
+data/interim/*
+data/processed/*
+!data/demos/
+*.csv
+*.json
+*.jsonl
+*.parquet
+
+# 模型文件
+experiments/checkpoints/*
+*.bin
+*.safetensors
+*.pth
+*.ckpt
+
+# 日志
+experiments/logs/*
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.bak
+.env
