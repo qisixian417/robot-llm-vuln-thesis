@@ -64,7 +64,7 @@ def main() -> None:
     parser.add_argument(
         "--corpus",
         type=str,
-        default="data/rag_corpus_full.jsonl",
+        default="data/rag_corpus_cleaned.jsonl",
         help="RAG语料 JSONL 路径",
     )
     parser.add_argument(

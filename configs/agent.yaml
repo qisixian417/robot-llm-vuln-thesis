@@ -1,4 +1,6 @@
-# Agent配置（千问 via DashScope OpenAI兼容接口）
+# RoboGuard 配置文件
+
+# Agent配置
 agent:
   model: qwen-plus
   base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
@@ -10,9 +12,20 @@ rag:
   persist_dir: ./data/chroma_db
   embedding_model: text-embedding-v2
   embedding_base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-  top_k: 3
+  top_k: 3  # 检索结果数量
 
 # 检测配置
 detection:
-  enable_rag: true
-  enable_verification: true
+  enable_rag: true  # 是否启用RAG检索
+  supported_languages:
+    - C++
+    - Python
+  supported_cwe_types:
+    - CWE-119  # Buffer Overflow
+    - CWE-78   # Command Injection
+    - CWE-401  # Memory Leak
+    - CWE-476  # Null Pointer Dereference
+    - CWE-362  # Race Condition
+    - CWE-416  # Use After Free
+    - CWE-190  # Integer Overflow
+    - CWE-134  # Format String
