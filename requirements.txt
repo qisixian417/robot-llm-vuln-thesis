@@ -28,6 +28,9 @@ pyyaml>=6.0
 # Dense Embedding + Reranker
 sentence-transformers>=3.0.0
 
+# Sparse Retrieval (BM25)
+rank_bm25>=0.2.2
+
 # 代码分析
 tree-sitter>=0.23.0
 pygments>=2.18.0

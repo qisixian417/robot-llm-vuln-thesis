@@ -1,0 +1,135 @@
+% ROS安全漏洞实证研究 v3 LaTeX表格
+% 自动生成，可直接插入论文
+% 需要 booktabs 宏包: \usepackage{booktabs}
+
+\begin{table}[htbp]
+\centering
+\caption{ROS安全漏洞数据集概览}
+\label{tab:dataset_overview}
+\begin{tabular}{lr}
+\toprule
+指标 & 数值 \\
+\midrule
+总样本数 & 356 \\
+漏洞样本 & 0 \\
+良性样本 & 356 \\
+CWE类型数 & 0 \\
+Shannon熵 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{ROS安全漏洞CWE类型分布}
+\label{tab:cwe_distribution}
+\begin{tabular}{lrrrr}
+\toprule
+CWE类型 & 数量 & 占比(\%) & 95\% CI & Top 25排名 \\
+\midrule
+CWE-476 & 141 & 27.7 & [23.8, 31.4] & 9 \\
+CWE-401 & 136 & 26.7 & [22.8, 30.5] & 32 \\
+CWE-362 & 127 & 25.0 & [21.2, 28.7] & 15 \\
+CWE-416 & 49 & 9.6 & [7.1, 12.2] & 10 \\
+CWE-119 & 21 & 4.1 & [2.6, 5.9] & 17 \\
+CWE-190 & 16 & 3.1 & [1.8, 4.7] & 12 \\
+CWE-134 & 12 & 2.4 & [1.2, 3.7] & 36 \\
+CWE-78 & 6 & 1.2 & [0.4, 2.2] & 7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{ROS组件漏洞密度与风险分析}
+\label{tab:component_density}
+\begin{tabular}{lrrrl}
+\toprule
+组件 & 总数 & 漏洞数 & 密度 & 主要CWE \\
+\midrule
+core_middleware & 409 & 340 & 0.831 & CWE-362 \\
+simulation & 165 & 108 & 0.655 & CWE-476 \\
+application & 120 & 52 & 0.433 & CWE-401 \\
+perception & 53 & 9 & 0.170 & CWE-476 \\
+autonomous_driving & 42 & 0 & 0.000 & None \\
+drone & 41 & 0 & 0.000 & None \\
+other & 35 & 0 & 0.000 & None \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{代码复杂度指标对比（漏洞 vs 良性）}
+\label{tab:complexity}
+\begin{tabular}{lrrrrrl}
+\toprule
+指标 & 漏洞中位数 & 良性中位数 & $p$值 & $p_{adj}$ & Cliff's $\delta$ & 效应 \\
+\midrule
+loc & 6.0 & 7.0 & 0.0028 & 0.0141* & -0.119 & negligible \\
+sloc & 5.0 & 6.0 & 0.0107 & 0.0214* & -0.102 & negligible \\
+num_functions_called & 3.0 & 3.0 & 0.7761 & 0.7761 & -0.011 & negligible \\
+max_nesting_depth & 0.0 & 1.0 & $<$0.0001 & $<$0.0001* & -0.247 & small \\
+num_conditions & 0.0 & 0.0 & 0.0050 & 0.0202* & -0.100 & negligible \\
+cyclomatic_complexity & 1.0 & 1.0 & 0.0050 & 0.0202* & -0.100 & negligible \\
+num_pointers & 1.0 & 0.0 & $<$0.0001 & $<$0.0001* & 0.164 & small \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize * 经Holm-Bonferroni校正后显著 ($p_{adj} < 0.05$)} \\
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{编程语言漏洞特征对比}
+\label{tab:language}
+\begin{tabular}{lrrrr}
+\toprule
+语言 & 总数 & 漏洞数 & 密度 & 平均LOC \\
+\midrule
+C++ & 675 & 431 & 0.639 & 11.5 \\
+Python & 190 & 78 & 0.411 & 12.9 \\
+\midrule
+\multicolumn{5}{l}{Fisher's exact: OR = 2.54, $p$ = 0.0000} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{ROS API特征与漏洞关联分析}
+\label{tab:api_features}
+\begin{tabular}{lrrrrl}
+\toprule
+API特征 & 漏洞中出现 & 良性中出现 & OR & $p_{FDR}$ & 显著 \\
+\midrule
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{ROS代码反模式检测结果}
+\label{tab:antipatterns}
+\begin{tabular}{lrrrl}
+\toprule
+反模式 & 漏洞样本 & 良性样本 & OR & ROS架构根因 \\
+\midrule
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{漏洞预测模型对比}
+\label{tab:model_comparison}
+\begin{tabular}{lrrr}
+\toprule
+模型 & 特征数 & AUC (5折CV) & 似然比检验 \\
+\midrule
+仅复杂度 & 7 & 0.651 $\pm$ 0.040 & - \\
+复杂度+API & 19 & 0.749 $\pm$ 0.023 & - \\
+全模型 & 28 & 0.927 $\pm$ 0.019 & - \\
+随机森林 & 28 & 0.941 $\pm$ 0.014 & - \\
+\bottomrule
+\end{tabular}
+\end{table}

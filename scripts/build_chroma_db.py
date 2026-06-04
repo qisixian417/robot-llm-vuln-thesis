@@ -1,3 +1,4 @@
+# [数据准备] 从rag_corpus_v2_filtered.jsonl构建code-level Chroma向量库（text-embedding-v3，batch≤10）
 """从 JSONL 语料构建 Chroma 向量数据库。"""
 
 import argparse
@@ -31,8 +32,19 @@ def to_documents(items: List[Dict[str, Any]]) -> List[Document]:
     documents: List[Document] = []
     for item in items:
         metadata = {"id": item.get("id"), "type": item.get("type")}
+
+        for key in ("cwe_id", "language", "ros_component", "repo", "ros_version"):
+            val = item.get(key)
+            if val:
+                metadata[key] = val
+
         extra_metadata = item.get("metadata", {})
         if isinstance(extra_metadata, dict):
+            for key in ("cwe_id", "language", "ros_component", "repo", "ros_version"):
+                if key not in metadata or not metadata[key]:
+                    val = extra_metadata.get(key)
+                    if val:
+                        metadata[key] = val
             metadata.update(extra_metadata)
 
         content = item.get("content", "")

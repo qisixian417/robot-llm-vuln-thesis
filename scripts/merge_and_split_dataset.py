@@ -1,3 +1,4 @@
+# [数据准备] 合并/去重/切分数据集：按仓库切分（防泄漏），输出train/test/rag_corpus，含独立性验证
 #!/usr/bin/env python3
 """
 Merge labeled dataset + expanded samples, add metadata, split train/test, build RAG corpus.
@@ -99,8 +100,7 @@ def save_jsonl(samples: list, filepath: Path):
 
 
 def stratified_split(samples: list, test_ratio: float = 0.25) -> tuple:
-    """Stratified split by CWE ID."""
-    # Group by CWE
+    """Stratified split by CWE ID (DEPRECATED - use repo_based_split)."""
     cwe_groups = defaultdict(list)
     for sample in samples:
         cwe = sample.get('cwe_id', 'unknown')
@@ -115,6 +115,50 @@ def stratified_split(samples: list, test_ratio: float = 0.25) -> tuple:
         train_set.extend(group[:split_idx])
         test_set.extend(group[split_idx:])
 
+    return train_set, test_set
+
+
+def repo_based_split(samples: list, test_ratio: float = 0.25) -> tuple:
+    """Split by repository to prevent data leakage.
+
+    All samples from the same repo go entirely into train OR test.
+    Repos are assigned to test set greedily until test_ratio is met,
+    prioritizing repos that improve CWE diversity in the test set.
+    """
+    repo_groups = defaultdict(list)
+    for sample in samples:
+        repo = sample.get('repo', 'unknown')
+        repo_groups[repo].append(sample)
+
+    target_test_size = int(len(samples) * test_ratio)
+
+    sorted_repos = sorted(repo_groups.keys(), key=lambda r: len(repo_groups[r]))
+
+    test_repos = set()
+    test_cwe_coverage = set()
+    current_test_size = 0
+
+    for repo in sorted_repos:
+        if current_test_size >= target_test_size:
+            break
+        group = repo_groups[repo]
+        group_cwes = set(s.get('cwe_id', 'unknown') for s in group)
+        new_cwes = group_cwes - test_cwe_coverage
+        if new_cwes or current_test_size < target_test_size * 0.8:
+            test_repos.add(repo)
+            test_cwe_coverage.update(group_cwes)
+            current_test_size += len(group)
+
+    train_set = []
+    test_set = []
+    for repo, group in repo_groups.items():
+        if repo in test_repos:
+            test_set.extend(group)
+        else:
+            train_set.extend(group)
+
+    random.shuffle(train_set)
+    random.shuffle(test_set)
     return train_set, test_set
 
 
@@ -236,11 +280,15 @@ def main():
 
     print(f"  Added metadata to {len(unique_samples)} samples")
 
-    # Stratified split
-    print("\n5. Performing stratified split (75/25 by CWE)...")
-    train_samples, test_samples = stratified_split(unique_samples, test_ratio=0.25)
+    # Repo-based split (prevents data leakage between train/test)
+    print("\n5. Performing repo-based split (75/25, same repo never in both)...")
+    train_samples, test_samples = repo_based_split(unique_samples, test_ratio=0.25)
     print(f"  Training set: {len(train_samples)} samples")
     print(f"  Test set: {len(test_samples)} samples")
+    train_repos = set(s.get('repo', '') for s in train_samples)
+    test_repos = set(s.get('repo', '') for s in test_samples)
+    print(f"  Train repos: {len(train_repos)}, Test repos: {len(test_repos)}")
+    print(f"  Repo overlap: {len(train_repos & test_repos)} (should be 0)")
 
     # Build RAG corpus (only vulnerable samples from training set)
     print("\n6. Building RAG corpus (vulnerable samples from training set only)...")

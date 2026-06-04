@@ -1,109 +1,122 @@
-"""Vulnerability Detector Agent - 检测代码漏洞"""
+# [C2: Detection Agent] 主检测模块：根据Router预判的CWE类型选用专用prompt，结合KL-RAG案例判断漏洞
+"""Vulnerability Detector Agent - CWE-specific code analysis.
+
+This is the core detection module. Given a code snippet and (optionally) a
+predicted CWE type from Router Agent, it uses a CWE-specific prompt to
+focus the LLM's attention on the most likely vulnerability pattern.
+
+Refactored from a single generic prompt to support 9 specialized prompts.
+"""
 
 import json
-from typing import Dict, Any, List
-from langchain_core.prompts import ChatPromptTemplate
+from typing import Dict, Any, List, Optional
+
+from langchain_core.language_models import BaseChatModel
+
+from agents.cwe_prompts import get_prompt_for_cwe
 
 
 class VulnDetectorAgent:
-    """漏洞检测Agent"""
+    """CWE-aware vulnerability detection agent."""
 
-    def __init__(self, llm, rag_retriever=None):
+    def __init__(self, llm: BaseChatModel, rag_retriever=None):
         self.llm = llm
         self.rag_retriever = rag_retriever
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """你是机器人代码安全专家。检测代码中的安全漏洞。
 
-参考知识（从历史漏洞案例中检索）：
-{context}
+    async def detect(
+        self,
+        code: str,
+        cwe_hint: Optional[str] = None,
+        rag_documents: Optional[List] = None,
+    ) -> Dict[str, Any]:
+        """Detect vulnerability in code.
 
-输入的代码每行都有行号前缀（格式：L1: 代码内容）。请分析代码并返回JSON格式的检测结果。
+        Args:
+            code: code snippet to analyze
+            cwe_hint: optional CWE type predicted by Router Agent
+                     (None or "OTHER" → generic prompt)
+            rag_documents: pre-retrieved RAG context (optional;
+                          if None, falls back to self.rag_retriever)
+        """
+        rag_docs = rag_documents or []
+        if not rag_docs and self.rag_retriever:
+            if cwe_hint and cwe_hint != "OTHER":
+                try:
+                    rag_docs = await self.rag_retriever.retrieve(code, k=5, cwe_filter=cwe_hint)
+                except TypeError:
+                    rag_docs = await self.rag_retriever.retrieve(code, k=5)
+            else:
+                rag_docs = await self.rag_retriever.retrieve(code, k=5)
 
-如果发现漏洞，返回：
-{{
-  "has_vulnerability": true,
-  "vulnerability_type": "CWE-XXX: 漏洞类型名称",
-  "reason": "详细说明为什么存在这个漏洞",
-  "confidence": 0.0-1.0,
-  "vulnerable_lines": [
-    {{"line_number": 行号, "code": "该行代码内容", "explanation": "该行为什么有问题"}}
-  ]
-}}
+        context = self._format_context(rag_docs)
 
-如果没有发现漏洞，返回：
-{{
-  "has_vulnerability": false,
-  "vulnerability_type": null,
-  "reason": "代码看起来是安全的",
-  "confidence": 0.8,
-  "vulnerable_lines": []
-}}
-
-重点关注：
-- 缓冲区溢出 (CWE-119)
-- 空指针解引用 (CWE-476)
-- 资源泄漏 (CWE-401)
-- 并发问题 (CWE-362)
-- 命令注入 (CWE-78)
-- Use After Free (CWE-416)
-- 整数溢出 (CWE-190)
-- 格式化字符串 (CWE-134)
-- ROS特定漏洞
-
-只返回JSON，不要其他文字。"""),
-            ("user", "代码：\n{code}")
-        ])
-
-    async def detect(self, code: str) -> Dict[str, Any]:
-        """检测漏洞"""
-        # 检索相关知识
-        rag_docs = []
-        context = "无相关历史案例"
-
-        if self.rag_retriever:
-            docs = await self.rag_retriever.retrieve(code)
-            rag_docs = [
-                {
-                    "content": doc.page_content,
-                    "metadata": doc.metadata
-                }
-                for doc in docs
-            ]
-            if docs:
-                context = "\n\n".join([
-                    f"案例{i+1}: {doc.page_content}\n元数据: {doc.metadata}"
-                    for i, doc in enumerate(docs)
-                ])
-
-        # 给代码添加行号
         numbered_code = "\n".join(
             f"L{i+1}: {line}" for i, line in enumerate(code.splitlines())
         )
 
-        # 调用LLM检测
-        chain = self.prompt | self.llm
+        prompt = get_prompt_for_cwe(cwe_hint or "OTHER")
+        chain = prompt | self.llm
         response = await chain.ainvoke({
             "code": numbered_code,
-            "context": context
+            "context": context,
         })
 
-        # 解析LLM返回的JSON
+        result = self._parse_response(response.content)
+
+        result["retrieved_knowledge"] = [
+            {"content": doc.page_content[:500], "metadata": doc.metadata}
+            for doc in rag_docs
+        ]
+        result["cwe_hint_used"] = cwe_hint or "OTHER"
+
+        return result
+
+    def _format_context(self, docs: List) -> str:
+        if not docs:
+            return "No relevant historical cases found."
+        parts = []
+        for i, doc in enumerate(docs):
+            content = getattr(doc, "page_content", str(doc))
+            metadata = getattr(doc, "metadata", {})
+            cwe = metadata.get("cwe_id", "?")
+            repo = metadata.get("repo", "?")
+            parts.append(f"Case {i+1} [{cwe} from {repo}]:\n{content[:500]}")
+        return "\n\n".join(parts)
+
+    def _parse_response(self, raw_text: str) -> Dict[str, Any]:
+        text = raw_text.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
+
         try:
-            result = json.loads(response.content)
+            result = json.loads(text)
         except json.JSONDecodeError:
-            result = {
-                "has_vulnerability": False,
-                "vulnerability_type": None,
-                "reason": "无法解析检测结果",
-                "confidence": 0.0,
-                "vulnerable_lines": []
-            }
+            try:
+                start = text.find("{")
+                end = text.rfind("}")
+                if start >= 0 and end > start:
+                    result = json.loads(text[start:end+1])
+                else:
+                    raise ValueError("No JSON found")
+            except (json.JSONDecodeError, ValueError):
+                return {
+                    "has_vulnerability": False,
+                    "vulnerability_type": None,
+                    "reason": "Failed to parse LLM output",
+                    "confidence": 0.0,
+                    "vulnerable_lines": [],
+                }
 
-        # 确保 vulnerable_lines 字段存在
-        if "vulnerable_lines" not in result:
-            result["vulnerable_lines"] = []
+        result.setdefault("has_vulnerability", False)
+        result.setdefault("vulnerability_type", None)
+        result.setdefault("reason", "")
+        result.setdefault("confidence", 0.5)
+        result.setdefault("vulnerable_lines", [])
 
-        # 添加RAG检索结果
-        result["retrieved_knowledge"] = rag_docs
+        try:
+            result["confidence"] = max(0.0, min(1.0, float(result["confidence"])))
+        except (TypeError, ValueError):
+            result["confidence"] = 0.5
 
         return result

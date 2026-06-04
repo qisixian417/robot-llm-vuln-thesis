@@ -1,3 +1,4 @@
+# [Naive Dense检索] 基础向量检索器：DashScope text-embedding-v3 + Chroma，支持cwe_id/language/component metadata过滤
 """RAG检索器 - 从Chroma向量数据库检索相关漏洞知识。"""
 
 import os
@@ -35,8 +36,8 @@ class RAGRetriever:
             # DashScope 的 embedding 兼容接口期望收到字符串，
             # 关闭 LangChain 的长度安全分词逻辑，避免传入 token 列表后报 400。
             check_embedding_ctx_length=False,
-            # DashScope embedding 单次最多支持 25 条输入。
-            chunk_size=25,
+            # text-embedding-v3 supports max 10 items per batch
+            chunk_size=10,
         )
         self.vectorstore = Chroma(
             collection_name=self.collection_name,
@@ -44,8 +45,27 @@ class RAGRetriever:
             embedding_function=self.embeddings,
         )
 
-    async def retrieve(self, query: str, k: int = 3) -> List[Document]:
-        """检索相关文档。"""
+    async def retrieve(
+        self,
+        query: str,
+        k: int = 3,
+        cwe_filter: str | None = None,
+        language_filter: str | None = None,
+        component_filter: str | None = None,
+    ) -> List[Document]:
+        """检索相关文档,支持 metadata 过滤。"""
+        where_filter = {}
+        if cwe_filter:
+            where_filter["cwe_id"] = cwe_filter
+        if language_filter:
+            where_filter["language"] = language_filter
+        if component_filter:
+            where_filter["ros_component"] = component_filter
+
+        if where_filter:
+            return self.vectorstore.similarity_search(
+                query, k=k, filter=where_filter
+            )
         return self.vectorstore.similarity_search(query, k=k)
 
     def add_documents(self, documents: List[Document]) -> None:
