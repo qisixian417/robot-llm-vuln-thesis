@@ -82,6 +82,10 @@ class Coordinator:
             "enable_plan_and_solve": enable_plan_and_solve,
             "enable_ast_tool": enable_ast_tool,
             "retrieval_k": retrieval_k,
+            "dense_k": 20,
+            "bm25_k": 20,
+            "rrf_top_k": 15,
+            "reranker_top_k": 5,
         }
 
         self.dense_retriever = RAGRetriever(persist_dir=chroma_persist_dir)
@@ -138,6 +142,41 @@ class Coordinator:
 
         return graph.compile()
 
+    @staticmethod
+    def _rrf_fuse(kl_docs, dense_docs, k: int, kl_weight: float = 0.7, dense_weight: float = 0.3):
+        """Weighted RRF fusion of KL-RAG and Dense retrieval results."""
+        from langchain_core.documents import Document
+        rrf_k = 60
+        scores: dict = {}
+        doc_map: dict = {}
+
+        def doc_key(doc):
+            did = doc.metadata.get("id")
+            return str(did) if did else str(hash(doc.page_content[:200]))
+
+        for rank, doc in enumerate(kl_docs):
+            key = doc_key(doc)
+            scores[key] = scores.get(key, 0) + kl_weight / (rrf_k + rank + 1)
+            doc.metadata["source_kl"] = True
+            doc_map[key] = doc
+
+        for rank, doc in enumerate(dense_docs):
+            key = doc_key(doc)
+            scores[key] = scores.get(key, 0) + dense_weight / (rrf_k + rank + 1)
+            if key in doc_map:
+                doc_map[key].metadata["source_dense"] = True
+            else:
+                doc.metadata["source_dense"] = True
+                doc_map[key] = doc
+
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        results = []
+        for key, score in ranked[:k]:
+            doc = doc_map[key]
+            doc.metadata["rrf_score"] = round(score, 6)
+            results.append(doc)
+        return results
+
     async def _router_node(self, state: PipelineState) -> PipelineState:
         if self.router and self.config["enable_router"]:
             output = await self.router.route(state["code"])
@@ -150,23 +189,45 @@ class Coordinator:
         code = state["code"]
         cwe_hint = state["router_output"]["primary"] if state["router_output"]["use_filter"] else None
 
-        # If KL-RAG is enabled, use it as the sole retriever (it has its own
-        # query-side knowledge extraction, replacing HyDE)
+        # KL-RAG: dual-path retrieval (KL knowledge + Dense code), fused via RRF + Reranker
         if self.kl_retriever and self.config["enable_kl_rag"]:
+            dense_k = self.config.get("dense_k", 20)
+            bm25_k = self.config.get("bm25_k", 20)
+            rrf_top_k = self.config.get("rrf_top_k", 15)
+            reranker_top_k = self.config.get("reranker_top_k", 5)
+            kl_docs, dense_docs = [], []
+
             try:
-                docs = await self.kl_retriever.retrieve(
-                    code, k=self.config["retrieval_k"], cwe_filter=cwe_hint,
+                kl_docs = await self.kl_retriever.retrieve(
+                    code, k=dense_k, cwe_filter=cwe_hint,
                 )
             except Exception as e:
-                print(f"[KL-RAG] retrieve failed: {e}, falling back to dense")
-                docs = []
-                try:
-                    docs = await self.dense_retriever.retrieve(
-                        code, k=self.config["retrieval_k"], cwe_filter=cwe_hint,
-                    )
-                except TypeError:
-                    docs = await self.dense_retriever.retrieve(code, k=self.config["retrieval_k"])
-            state["rag_query"] = "knowledge-level (LLM-extracted)"
+                print(f"[KL-RAG] retrieve failed: {e}")
+
+            try:
+                dense_docs = await self.dense_retriever.retrieve(code, k=bm25_k)
+            except Exception as e:
+                print(f"[Dense] retrieve failed: {e}")
+
+            if kl_docs and dense_docs:
+                docs = self._rrf_fuse(kl_docs, dense_docs, k=rrf_top_k, kl_weight=0.7, dense_weight=0.3)
+                state["rag_query"] = "dual-path KL+Dense (RRF)"
+            elif kl_docs:
+                docs = kl_docs[:rrf_top_k]
+                state["rag_query"] = "knowledge-level (LLM-extracted)"
+            else:
+                docs = dense_docs[:rrf_top_k]
+                state["rag_query"] = "dense fallback"
+
+            # Reranker: 从 rrf_top_k 条中精排出 reranker_top_k 条
+            if self.reranker and self.config["enable_reranker"] and docs:
+                if isinstance(self.reranker, LLMReranker):
+                    docs = await self.reranker.rerank(code, docs, top_k=reranker_top_k)
+                else:
+                    docs = self.reranker.rerank(code, docs, top_k=reranker_top_k)
+            else:
+                docs = docs[:reranker_top_k]
+
             state["rag_quality"] = "N/A"
             state["rag_documents"] = docs
             return state
