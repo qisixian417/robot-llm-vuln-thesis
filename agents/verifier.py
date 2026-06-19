@@ -35,58 +35,59 @@ SANITIZER_FOR_CWE = {
 
 
 POC_GEN_PROMPT_CPP = ChatPromptTemplate.from_messages([
-    ("system", """You are a security researcher writing a minimal Proof-of-Concept (PoC).
+    ("system", """你是一位安全研究员，正在编写最简化的概念验证（PoC）程序。
 
-Given a vulnerable function and a vulnerability report, write a SELF-CONTAINED C++ program that:
-1. Includes all needed headers
-2. Stubs any ROS/external types with minimal mocks (e.g., struct Msg {{ std::string data; using ConstPtr = std::shared_ptr<const Msg>; }})
-3. Copies the original function VERBATIM
-4. Has a main() that calls the function with malicious input designed to TRIGGER the {cwe} vulnerability
+给定一个有漏洞的函数和漏洞报告，编写一个完全独立的C++程序，该程序需要：
+1. 包含所有需要的头文件
+2. 对ROS/外部类型用最小化mock代替（例如：struct Msg {{ std::string data; using ConstPtr = std::shared_ptr<const Msg>; }}）
+3. 原封不动地复制原始函数
+4. 有一个main()函数，用恶意输入调用该函数以触发{cwe}漏洞
 
-The program must compile with: g++ -std=c++17 -fsanitize=address -g -O0
-The PoC will be run with AddressSanitizer to detect memory errors.
+程序必须能用以下命令编译：g++ -std=c++17 -fsanitize=address -g -O0
+PoC将在AddressSanitizer下运行以检测内存错误。
 
-For CWE-119: feed oversized input to overflow buffer
-For CWE-476: pass NULL or empty pointer
-For CWE-401: don't matter - leak detected at exit
-For CWE-416: trigger free then access
-For CWE-78: pass shell-injection payload
-For CWE-190: pass values causing arithmetic overflow
+各CWE的触发方式：
+- CWE-119：输入超长数据使缓冲区溢出
+- CWE-476：传入NULL或空指针
+- CWE-401：无需特别处理，程序退出时会检测到泄漏
+- CWE-416：先触发free然后访问
+- CWE-78：传入shell注入载荷
+- CWE-190：传入会导致算术溢出的值
 
-Output ONLY the C++ source code. No explanations, no markdown fences."""),
-    ("user", """Vulnerable function:
+只输出C++源代码，不要任何解释，不要markdown代码块。"""),
+    ("user", """有漏洞的函数：
 ```cpp
 {code}
 ```
 
-Vulnerability report:
-- Type: {cwe}
-- Reason: {reason}
+漏洞报告：
+- 类型：{cwe}
+- 原因：{reason}
 
-Generate the PoC C++ program:"""),
+生成PoC C++程序："""),
 ])
 
 
 POC_GEN_PROMPT_PY = ChatPromptTemplate.from_messages([
-    ("system", """You are a security researcher writing a minimal Proof-of-Concept (PoC).
+    ("system", """你是一位安全研究员，正在编写最简化的概念验证（PoC）程序。
 
-Given a vulnerable Python function and a vulnerability report, write a SELF-CONTAINED Python program that:
-1. Imports needed modules
-2. Stubs any ROS/external types with minimal mocks
-3. Copies the original function VERBATIM
-4. Has code that calls the function with malicious input designed to TRIGGER the {cwe} vulnerability
+给定一个有漏洞的Python函数和漏洞报告，编写一个完全独立的Python程序，该程序需要：
+1. 导入所有需要的模块
+2. 对ROS/外部类型用最小化mock代替
+3. 原封不动地复制原始函数
+4. 有代码用恶意输入调用该函数以触发{cwe}漏洞
 
-Output ONLY the Python source code. No explanations, no markdown fences."""),
-    ("user", """Vulnerable function:
+只输出Python源代码，不要任何解释，不要markdown代码块。"""),
+    ("user", """有漏洞的函数：
 ```python
 {code}
 ```
 
-Vulnerability report:
-- Type: {cwe}
-- Reason: {reason}
+漏洞报告：
+- 类型：{cwe}
+- 原因：{reason}
 
-Generate the PoC Python program:"""),
+生成PoC Python程序："""),
 ])
 
 

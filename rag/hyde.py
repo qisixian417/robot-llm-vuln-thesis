@@ -12,20 +12,19 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 
 HYDE_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a vulnerability documentation expert.
-Given a code snippet, write a brief hypothetical vulnerability description
-that would appear in a security advisory if this code contained a vulnerability.
+    ("system", """你是一位漏洞文档专家。
+给定一段代码，写一段简短的假设性漏洞描述，就好像这段代码真的含有漏洞时安全公告里会出现的内容。
 
-Focus on:
-- What type of vulnerability could exist (CWE category)
-- What unsafe patterns are present
-- What the impact would be
+重点关注：
+- 可能存在什么类型的漏洞（CWE分类）
+- 存在哪些不安全的代码模式
+- 影响会是什么
 
-Write 2-3 sentences in English. Be specific about the code patterns you observe.
-If the code appears safe, describe what vulnerability it COULD have had and why it doesn't.
+用2-3句话描述，要针对你观察到的具体代码模式。
+如果代码看起来安全，描述它本来可能有什么漏洞以及为什么没有。
 
-Output ONLY the description, nothing else."""),
-    ("user", "Code:\n```\n{code}\n```"),
+只输出描述内容，不要其他任何内容。"""),
+    ("user", "代码：\n```\n{code}\n```"),
 ])
 
 

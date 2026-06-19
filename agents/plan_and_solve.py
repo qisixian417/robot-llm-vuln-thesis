@@ -26,17 +26,17 @@ from typing import Dict, Any, List, Optional
 from langchain_core.language_models import BaseChatModel
 
 
-PLAN_PROMPT = """You are a security analyst. Create a 3-step analysis plan for detecting vulnerabilities in the given code.
+PLAN_PROMPT = """你是一位安全分析师。为检测以下代码中的漏洞，制定一个3步分析计划。
 
-Code:
+代码：
 ```
 {code}
 ```
 
-Output JSON only:
+只输出JSON：
 {{
-  "cwe_suspects": ["CWE-XXX", ...],  // list of CWE types that MIGHT be present (max 3)
-  "dangerous_ops": ["op1", "op2"],   // dangerous operations to investigate
+  "cwe_suspects": ["CWE-XXX", ...],  // 可能存在的CWE类型列表（最多3个）
+  "dangerous_ops": ["op1", "op2"],   // 需要调查的危险操作
   "analysis_steps": [
     {{"step": 1, "task": "...", "focus": "..."}},
     {{"step": 2, "task": "...", "focus": "..."}},
@@ -45,52 +45,52 @@ Output JSON only:
 }}"""
 
 
-STEP_PROMPT = """You are analyzing code for the vulnerability: {step_task}
+STEP_PROMPT = """你正在分析代码中的漏洞：{step_task}
 
-Code:
+代码：
 ```
 {code}
 ```
 
-Context from previous steps:
+前几步的上下文：
 {prior_context}
 
-Reference vulnerability cases:
+参考漏洞案例：
 {rag_context}
 
-Focus specifically on: {step_focus}
+重点关注：{step_focus}
 
-Output JSON only:
+只输出JSON：
 {{
-  "finding": "what you found (1-2 sentences)",
-  "evidence": "specific code detail supporting your finding",
-  "risk_level": "high" | "medium" | "low" | "none",
-  "uncertainty": "what you are NOT sure about (1 sentence or 'none')"
+  "finding": "你发现了什么（1-2句话）",
+  "evidence": "支持你发现的具体代码细节",
+  "risk_level": "high（高）" | "medium（中）" | "low（低）" | "none（无）",
+  "uncertainty": "你不确定的地方（1句话，或填'无'）"
 }}"""
 
 
-SYNTHESIS_PROMPT = """You are synthesizing vulnerability analysis steps to make a final decision.
+SYNTHESIS_PROMPT = """你正在综合漏洞分析步骤以做出最终判断。
 
-Code:
+代码：
 ```
 {code}
 ```
 
-Analysis plan and results:
+分析计划与结果：
 {step_results}
 
-Based on ALL the evidence above, make a final vulnerability verdict.
+根据以上所有证据，做出最终的漏洞判断。
 
-Output JSON only:
+只输出JSON：
 {{
   "has_vulnerability": true/false,
-  "vulnerability_type": "CWE-XXX: name" or null,
-  "reason": "synthesis of evidence (2-3 sentences)",
+  "vulnerability_type": "CWE-XXX: 名称" 或 null,
+  "reason": "证据综合（2-3句话）",
   "confidence": 0.0-1.0,
   "vulnerable_lines": [{{"line_number": N, "code": "...", "explanation": "..."}}]
 }}
 
-Be conservative: only flag as vulnerable if multiple steps found consistent evidence."""
+保守判断：只有当多个步骤发现一致的证据时，才标记为漏洞。"""
 
 
 class PlanAndSolveAgent:
@@ -112,20 +112,19 @@ class PlanAndSolveAgent:
         # Step 1: Generate analysis plan
         plan = await self._generate_plan(code, cwe_hint)
         if plan is None:
-            # Fallback: simple 3-step generic plan
             plan = {
-                "cwe_suspects": [cwe_hint or "unknown"],
-                "dangerous_ops": ["unknown"],
+                "cwe_suspects": [cwe_hint or "未知"],
+                "dangerous_ops": ["未知"],
                 "analysis_steps": [
-                    {"step": 1, "task": "Identify dangerous operations", "focus": "unsafe function calls"},
-                    {"step": 2, "task": "Trace input sources", "focus": "external/user input flow"},
-                    {"step": 3, "task": "Check defensive measures", "focus": "bounds/null checks"},
+                    {"step": 1, "task": "识别危险操作", "focus": "不安全的函数调用"},
+                    {"step": 2, "task": "追踪输入来源", "focus": "外部/用户输入流"},
+                    {"step": 3, "task": "检查防护措施", "focus": "边界/空值检查"},
                 ]
             }
 
         steps = plan.get("analysis_steps", [])[:3]
         step_results = []
-        prior_context = "No prior steps yet."
+        prior_context = "暂无前置步骤。"
 
         # Execute each step
         for step_info in steps:

@@ -27,17 +27,14 @@ MAX_REPAIR_ROUNDS = 3
 
 SELF_CHECK_ROLES = [
     ("security_auditor",
-     "You are a strict security auditor. Review the repaired code and determine: "
-     "Does the fix FULLY eliminate the {cwe} vulnerability? "
-     "Reply with JSON: {{\"passed\": true/false, \"reason\": \"...\"}}"),
+     "你是一位严格的安全审计员。审查修复后的代码，判断：修复是否完全消除了{cwe}漏洞？"
+     "回复JSON：{{\"passed\": true/false, \"reason\": \"...\"}}"),
     ("code_reviewer",
-     "You are a careful code reviewer. Review the repaired code and determine: "
-     "Does the fix introduce ANY new bugs, memory issues, or vulnerabilities? "
-     "Reply with JSON: {{\"passed\": true/false, \"reason\": \"...\"}}"),
+     "你是一位细心的代码审查员。审查修复后的代码，判断：修复是否引入了任何新的bug、内存问题或漏洞？"
+     "回复JSON：{{\"passed\": true/false, \"reason\": \"...\"}}"),
     ("original_developer",
-     "You are the original developer. Review the repaired code and determine: "
-     "Does the fix preserve the original function's semantics and behavior? "
-     "Reply with JSON: {{\"passed\": true/false, \"reason\": \"...\"}}"),
+     "你是原始开发者。审查修复后的代码，判断：修复是否保留了原始函数的语义和行为？"
+     "回复JSON：{{\"passed\": true/false, \"reason\": \"...\"}}"),
 ]
 
 
@@ -96,8 +93,8 @@ async def _self_check(llm: BaseChatModel, original_code: str,
     results = []
     for role_name, role_prompt in SELF_CHECK_ROLES:
         system = role_prompt.format(cwe=cwe)
-        user = (f"Original code:\n```\n{original_code[:1000]}\n```\n\n"
-                f"Fixed code:\n```\n{fixed_code[:1000]}\n```")
+        user = (f"原始代码：\n```\n{original_code[:1000]}\n```\n\n"
+                f"修复后代码：\n```\n{fixed_code[:1000]}\n```")
         try:
             resp = await llm.ainvoke([
                 SystemMessage(content=system),
@@ -117,21 +114,19 @@ async def _self_check(llm: BaseChatModel, original_code: str,
 async def _debate(llm: BaseChatModel, original_code: str,
                   fixed_code: str, cwe: str) -> Dict[str, Any]:
     """攻防辩论：攻击方尝试证明修复不充分，防御方论证修复有效，裁判判决。"""
-    context = (f"Original vulnerable code ({cwe}):\n```\n{original_code[:800]}\n```\n\n"
-               f"Proposed fix:\n```\n{fixed_code[:800]}\n```")
+    context = (f"原始漏洞代码（{cwe}）：\n```\n{original_code[:800]}\n```\n\n"
+               f"提议的修复代码：\n```\n{fixed_code[:800]}\n```")
 
     # 攻击方（限制攻击范围：只针对可见代码，不能以"上下文缺失"为由攻击）
     attack_prompt = (
-        "You are an adversarial security researcher reviewing a vulnerability fix. "
-        "IMPORTANT: The code is a function-level snippet from a larger project. "
-        "You may ONLY attack based on what is VISIBLE in the code snippet. "
-        "Do NOT reject the fix because of missing context, undefined variables, "
-        "or dependencies that are not shown - those are outside the fix scope.\n\n"
+        "你是一位攻击性安全研究员，正在审查漏洞修复方案。"
+        "重要说明：这段代码是大型项目中的函数级片段。"
+        "你只能基于代码片段中可见的内容提出攻击。"
+        "不要因为缺少上下文、未定义的变量或未展示的依赖而拒绝修复——这些不在修复范围内。\n\n"
         f"{context}\n\n"
-        "Find real remaining vulnerabilities in the visible fix logic only. "
-        "If the fix correctly addresses the vulnerability pattern for what is visible, "
-        "severity should be 'none' or 'low'.\n"
-        "Reply with JSON: {{\"attack_points\": [\"...\"], \"severity\": \"high/medium/low/none\"}}"
+        "只在可见的修复逻辑中寻找真实的残留漏洞。"
+        "如果修复正确地解决了可见代码中的漏洞模式，严重程度应为'none'或'low'。\n"
+        "回复JSON：{{\"attack_points\": [\"...\"], \"severity\": \"high/medium/low/none\"}}"
     )
     try:
         attack_resp = await llm.ainvoke([HumanMessage(content=attack_prompt)])
@@ -141,11 +136,11 @@ async def _debate(llm: BaseChatModel, original_code: str,
 
     # 防御方
     defense_prompt = (
-        "You are a security engineer defending the fix. "
-        "The code is a function-level snippet - incomplete context is expected and acceptable. "
-        f"Counter the following attack points: {attack.get('attack_points', [])}\n\n"
+        "你是一位为修复方案辩护的安全工程师。"
+        "这段代码是函数级片段——上下文不完整是预期的、可接受的。"
+        f"反驳以下攻击点：{attack.get('attack_points', [])}\n\n"
         f"{context}\n\n"
-        "Reply with JSON: {{\"defense\": \"...\", \"fix_is_sufficient\": true/false}}"
+        "回复JSON：{{\"defense\": \"...\", \"fix_is_sufficient\": true/false}}"
     )
     try:
         defense_resp = await llm.ainvoke([HumanMessage(content=defense_prompt)])
@@ -155,27 +150,24 @@ async def _debate(llm: BaseChatModel, original_code: str,
 
     # 裁判（明确告知上下文不完整是正常的）
     judge_prompt = (
-        "You are a neutral security judge evaluating a vulnerability fix. "
-        "CONTEXT: This is a function-level code snippet. Missing class definitions, "
-        "member variables, or external dependencies are EXPECTED and should NOT be "
-        "used as grounds for rejection.\n\n"
-        f"Attack points: {attack.get('attack_points', [])}\n"
-        f"Attack severity: {attack.get('severity', 'none')}\n"
-        f"Defense: {defense.get('defense', '')}\n\n"
+        "你是一位评估漏洞修复方案的中立安全裁判。"
+        "背景说明：这是函数级代码片段。缺少类定义、成员变量或外部依赖是预期的，不能作为拒绝的理由。\n\n"
+        f"攻击点：{attack.get('attack_points', [])}\n"
+        f"攻击严重程度：{attack.get('severity', 'none')}\n"
+        f"防御方意见：{defense.get('defense', '')}\n\n"
         f"{context}\n\n"
-        "Approve the fix if it correctly addresses the core vulnerability pattern "
-        "visible in the code. Reject only if there is a clear remaining vulnerability "
-        "in the visible fix logic.\n"
-        "Reply with JSON: "
+        "如果修复正确解决了代码中可见的核心漏洞模式，则批准。"
+        "只有在可见修复逻辑中仍有明确残留漏洞时才拒绝。\n"
+        "回复JSON："
         "{{\"verdict\": \"approved/rejected\", \"confidence\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
         judge_resp = await llm.ainvoke([HumanMessage(content=judge_prompt)])
         judgment = _parse_repair_json(judge_resp.content) or {
-            "verdict": "approved", "confidence": 0.7, "reason": "default"
+            "verdict": "approved", "confidence": 0.7, "reason": "默认通过"
         }
     except Exception:
-        judgment = {"verdict": "approved", "confidence": 0.5, "reason": "judge failed"}
+        judgment = {"verdict": "approved", "confidence": 0.5, "reason": "裁判调用失败"}
 
     return {
         "verdict": judgment.get("verdict", "approved"),
@@ -220,17 +212,17 @@ class RepairAgent:
         prompt_template = get_repair_prompt(cwe)
 
         context_note = (
-            "NOTE: The code snippet may be incomplete. Make reasonable assumptions "
-            "for missing context. Do NOT use TODO comments - implement actual fixes."
+            "注意：代码片段可能不完整。对缺失的上下文做出合理假设。"
+            "不要使用TODO注释——要实现真实的修复代码。"
         )
 
         if sandbox_feedback:
             # 把反馈放在最前面，用强烈指令强迫 LLM 针对性修改
             feedback_block = (
-                f"CRITICAL FEEDBACK FROM PREVIOUS ATTEMPT (you MUST address this):\n"
+                f"上一次修复尝试的关键反馈（你必须解决这些问题）：\n"
                 f"{sandbox_feedback}\n\n"
-                f"DO NOT repeat the same mistake. Make concrete code changes to fix "
-                f"the issues raised above. No TODO comments - write actual implementation.\n\n"
+                f"不要重复同样的错误。针对上述问题做出具体的代码修改。"
+                f"不要用TODO注释——要写实际的实现代码。\n\n"
             )
             rag_context = feedback_block + context_note + "\n\n" + rag_context
         else:

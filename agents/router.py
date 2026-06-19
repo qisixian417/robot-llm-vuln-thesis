@@ -13,34 +13,33 @@ from langchain_core.prompts import ChatPromptTemplate
 
 
 ROUTER_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a vulnerability classifier. Given a code snippet,
-predict which CWE type it MOST LIKELY contains (or could contain).
+    ("system", """你是一个漏洞分类专家。给定一段代码，预测它最可能包含哪种CWE类型的漏洞。
 
-Available CWE types:
-- CWE-119: Buffer Overflow (strcpy, memcpy, fixed-size arrays, no bounds check)
-- CWE-476: NULL Pointer Dereference (pointer used without NULL check)
-- CWE-401: Memory Leak (malloc/new without free/delete on all paths)
-- CWE-362: Race Condition (shared variables, multiple threads, no locking)
-- CWE-416: Use After Free (pointer used after free/delete)
-- CWE-190: Integer Overflow (arithmetic on int without bounds check)
-- CWE-134: Format String (printf with user-controlled format)
-- CWE-78: Command Injection (system/exec/popen with string concatenation)
+可选的CWE类型：
+- CWE-119: 缓冲区溢出（strcpy、memcpy、固定大小数组、没有边界检查）
+- CWE-476: 空指针解引用（指针使用前没有NULL检查）
+- CWE-401: 内存泄漏（malloc/new之后没有在所有路径上free/delete）
+- CWE-362: 竞态条件（共享变量、多线程、没有加锁）
+- CWE-416: 释放后使用（free/delete之后仍然使用指针）
+- CWE-190: 整数溢出（整数运算没有边界检查）
+- CWE-134: 格式化字符串（printf使用了用户可控的格式串）
+- CWE-78: 命令注入（system/exec/popen使用了字符串拼接）
 
-Pattern hints:
-- strcpy/strcat/sprintf + fixed buffer → CWE-119
-- system()/exec()/popen() + string concat → CWE-78
-- new/malloc without delete/free on error path → CWE-401
-- pointer dereference without if(ptr) check → CWE-476
-- printf(variable) instead of printf("%s", variable) → CWE-134
-- shared variable + thread/callback + no mutex → CWE-362
-- delete/free then use → CWE-416
-- arithmetic without overflow check → CWE-190
+判断规则：
+- strcpy/strcat/sprintf + 固定缓冲区 → CWE-119
+- system()/exec()/popen() + 字符串拼接 → CWE-78
+- new/malloc但错误路径没有delete/free → CWE-401
+- 指针解引用前没有if(ptr)检查 → CWE-476
+- printf(变量) 而不是 printf("%s", 变量) → CWE-134
+- 共享变量 + 线程/回调 + 没有mutex → CWE-362
+- delete/free之后继续使用 → CWE-416
+- 算术运算没有溢出检查 → CWE-190
 
-If the code appears safe or you are unsure, output "OTHER".
+如果代码看起来安全或无法确定，输出"OTHER"。
 
-Output JSON only:
-{{"primary": "CWE-XXX", "secondary": "CWE-YYY or null", "confidence": 0.0-1.0}}"""),
-    ("user", "Code:\n```\n{code}\n```"),
+只输出JSON，不要其他内容：
+{{"primary": "CWE-XXX", "secondary": "CWE-YYY或null", "confidence": 0.0-1.0}}"""),
+    ("user", "代码：\n```\n{code}\n```"),
 ])
 
 

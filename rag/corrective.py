@@ -23,26 +23,25 @@ class RetrievalQuality(str, Enum):
 
 
 EVALUATOR_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a retrieval quality evaluator for code vulnerability detection.
+    ("system", """你是代码漏洞检测系统的检索质量评估员。
 
-Given a query code snippet and a set of retrieved vulnerability cases,
-judge whether the retrieved cases are relevant and useful for analyzing the query code.
+给定一段查询代码和一组检索到的漏洞案例，判断这些案例是否与查询代码相关且有用。
 
-Scoring criteria:
-- HIGH: Most cases share the same vulnerability pattern as potential issues in the query code
-- MEDIUM: Some cases are relevant but others are noise
-- LOW: Cases are mostly irrelevant to the query code's potential vulnerabilities
+评分标准：
+- HIGH（高）：大多数案例与查询代码的潜在漏洞模式相同
+- MEDIUM（中）：部分案例相关，但有噪音
+- LOW（低）：案例大多与查询代码的潜在漏洞无关
 
-Output ONLY one word: HIGH, MEDIUM, or LOW"""),
-    ("user", """Query code:
+只输出一个词：HIGH、MEDIUM 或 LOW"""),
+    ("user", """查询代码：
 ```
 {query_code}
 ```
 
-Retrieved cases (summarized):
+检索到的案例（摘要）：
 {cases_summary}
 
-Relevance judgment:"""),
+相关性判断："""),
 ])
 
 

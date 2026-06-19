@@ -34,34 +34,34 @@ DEFAULT_KL_COLLECTION_NAME = "roboguard_kl_rag"
 
 # Same 4-field schema as build_knowledge_base.py
 QUERY_KNOWLEDGE_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a senior security analyst. Analyze the given code snippet and extract structured knowledge to identify potential vulnerabilities.
+    ("system", """你是一位资深安全分析师。分析给定的代码片段，提取结构化知识用于识别潜在漏洞。
 
-Extract knowledge along 4 dimensions:
-1. functional_semantics: what the code is supposed to do (1 sentence)
-2. root_cause: WHAT could go wrong / what unsafe pattern is present (2 sentences)
-3. trigger_condition: what input or state could trigger the issue (1 sentence)
-4. fix_pattern: how would you fix it (1-2 sentences)
+沿4个维度提取知识：
+1. functional_semantics（功能语义）：代码应该做什么（1句话）
+2. root_cause（根因）：什么可能出错/存在什么不安全模式（2句话以内）
+3. trigger_condition（触发条件）：什么输入或状态会触发问题（1句话）
+4. fix_pattern（修复模式）：如何修复（1-2句话）
 
-If the code looks safe, describe what unsafe pattern is ABSENT and why it's safe.
+如果代码看起来安全，描述缺少哪种不安全模式以及为什么安全。
 
-Output STRICTLY JSON, no markdown fences:
+严格输出JSON，不要markdown代码块：
 {{
   "functional_semantics": "...",
   "root_cause": "...",
   "trigger_condition": "...",
   "fix_pattern": "..."
 }}"""),
-    ("user", "Code:\n```\n{code}\n```"),
+    ("user", "代码：\n```\n{code}\n```"),
 ])
 
 
 def _format_knowledge(item: dict) -> str:
     """Combine knowledge fields into a single embeddable text."""
     return (
-        f"Function: {item.get('functional_semantics', '')}\n\n"
-        f"Vulnerability root cause: {item.get('root_cause', '')}\n\n"
-        f"Trigger condition: {item.get('trigger_condition', '')}\n\n"
-        f"Fix pattern: {item.get('fix_pattern', '')}"
+        f"功能语义：{item.get('functional_semantics', '')}\n\n"
+        f"漏洞根因：{item.get('root_cause', '')}\n\n"
+        f"触发条件：{item.get('trigger_condition', '')}\n\n"
+        f"修复模式：{item.get('fix_pattern', '')}"
     )
 
 

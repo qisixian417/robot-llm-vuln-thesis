@@ -12,22 +12,22 @@ from langchain_core.prompts import ChatPromptTemplate
 # ── 共享修复CoT推理链 ─────────────────────────────────────────────────────────
 
 _REPAIR_COT = (
-    "\nBefore generating the fix, reason step by step:\n"
-    "1. ROOT CAUSE: What exactly is the vulnerability root cause?\n"
-    "2. STRATEGY: What is the minimal fix strategy? (based on historical patterns)\n"
-    "3. GENERATE: Write the fixed code, changing as few lines as possible\n"
-    "4. VERIFY: Does the fix eliminate the root cause without introducing new issues?\n"
+    "\n生成修复代码前，请按步骤思考：\n"
+    "1. 根因：漏洞的根本原因是什么？\n"
+    "2. 策略：最小化修复方案是什么？（参考历史修复模式）\n"
+    "3. 生成：编写修复代码，尽量少改几行\n"
+    "4. 验证：修复是否消除了根因，且没有引入新问题？\n"
 )
 
 _REPAIR_FMT = (
-    "\nYou MUST output valid JSON only. No markdown fences, no explanation outside JSON.\n"
-    "Start your response with {{ and end with }}.\n"
-    "Example format:\n"
-    '{{"fixed_code": "void foo() {{\\n  // fixed code here\\n}}", '
-    '"changes": [{{"line": 5, "original": "bad code", "fixed": "good code", "reason": "why"}}], '
-    '"fix_strategy": "one sentence", '
+    "\n你必须只输出合法的JSON，不要markdown代码块，JSON外不要有任何解释。\n"
+    "以{{开头，以}}结尾。\n"
+    "示例格式：\n"
+    '{{"fixed_code": "void foo() {{\\n  // 修复后的代码\\n}}", '
+    '"changes": [{{"line": 5, "original": "有问题的代码", "fixed": "修复后的代码", "reason": "原因"}}], '
+    '"fix_strategy": "一句话描述修复策略", '
     '"confidence": 0.8, '
-    '"cot_reasoning": "brief reasoning", '
+    '"cot_reasoning": "简要推理过程", '
     '"potential_issues": null}}\n'
 )
 
@@ -39,232 +39,232 @@ def _sys(body: str) -> str:
 # ── CWE-476: Null Pointer Dereference ────────────────────────────────────────
 
 _476_BODY = (
-    "You are a security expert fixing CWE-476 (Null Pointer Dereference).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: node->value = 42;  // no null check\n"
-    "After:  if (node != nullptr) {{ node->value = 42; }}\n"
-    "Pattern: Add null check before every pointer dereference.\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: return ptr->data.c_str();\n"
-    "After:  if (!ptr) {{ return \"\"; }}\n"
+    "你是一位安全专家，负责修复 CWE-476（空指针解引用）。\n\n"
+    "修复示例1：\n"
+    "修复前：node->value = 42;  // 没有空值检查\n"
+    "修复后：if (node != nullptr) {{ node->value = 42; }}\n"
+    "模式：在每次指针解引用前加空值检查。\n\n"
+    "修复示例2：\n"
+    "修复前：return ptr->data.c_str();\n"
+    "修复后：if (!ptr) {{ return \"\"; }}\n"
     "        return ptr->data.c_str();\n"
-    "Pattern: Early return or exception when pointer is null.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Do not use assert() - it's disabled in release builds\n"
-    "- Do not silently ignore null - return error or throw exception\n"
+    "模式：指针为空时提前返回或抛出异常。\n\n"
+    "禁止的做法：\n"
+    "- 不要使用 assert()，release版本中会被禁用\n"
+    "- 不要静默忽略空指针，要返回错误或抛出异常\n"
 )
 
 CWE476_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_476_BODY)),
-    ("user", "Vulnerable code (CWE-476):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-476）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-401: Memory Leak ──────────────────────────────────────────────────────
 
 _401_BODY = (
-    "You are a security expert fixing CWE-401 (Memory Leak).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: char* buf = new char[size]; process(buf);  // no delete\n"
-    "After:  char* buf = new char[size]; process(buf); delete[] buf;\n"
-    "Pattern: Ensure every allocation has a corresponding deallocation.\n\n"
-    "REPAIR EXAMPLE 2 (prefer RAII):\n"
-    "Before: Node* n = new Node(); return n->value;\n"
-    "After:  auto n = std::make_unique<Node>(); return n->value;\n"
-    "Pattern: Use smart pointers (unique_ptr/shared_ptr) to auto-manage memory.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Do not add delete in only one branch of if/else\n"
-    "- Prefer std::unique_ptr over raw new/delete in C++\n"
+    "你是一位安全专家，负责修复 CWE-401（内存泄漏）。\n\n"
+    "修复示例1：\n"
+    "修复前：char* buf = new char[size]; process(buf);  // 没有delete\n"
+    "修复后：char* buf = new char[size]; process(buf); delete[] buf;\n"
+    "模式：确保每次分配都有对应的释放。\n\n"
+    "修复示例2（推荐RAII）：\n"
+    "修复前：Node* n = new Node(); return n->value;\n"
+    "修复后：auto n = std::make_unique<Node>(); return n->value;\n"
+    "模式：使用智能指针（unique_ptr/shared_ptr）自动管理内存。\n\n"
+    "禁止的做法：\n"
+    "- 不要只在if/else的某一个分支加delete\n"
+    "- C++中推荐用std::unique_ptr代替原始new/delete\n"
 )
 
 CWE401_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_401_BODY)),
-    ("user", "Vulnerable code (CWE-401):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-401）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-362: Race Condition ───────────────────────────────────────────────────
 
 _362_BODY = (
-    "You are a security expert fixing CWE-362 (Race Condition).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: shared_counter++;  // unprotected shared variable\n"
-    "After:  std::lock_guard<std::mutex> lock(mtx); shared_counter++;\n"
-    "Pattern: Protect all shared variable accesses with mutex.\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: if (data_ready) {{ process(data); }}\n"
-    "After:  std::unique_lock<std::mutex> lock(mtx);\n"
+    "你是一位安全专家，负责修复 CWE-362（竞态条件）。\n\n"
+    "修复示例1：\n"
+    "修复前：shared_counter++;  // 未保护的共享变量\n"
+    "修复后：std::lock_guard<std::mutex> lock(mtx); shared_counter++;\n"
+    "模式：用mutex保护所有共享变量的访问。\n\n"
+    "修复示例2：\n"
+    "修复前：if (data_ready) {{ process(data); }}\n"
+    "修复后：std::unique_lock<std::mutex> lock(mtx);\n"
     "        cv.wait(lock, []{{ return data_ready; }});\n"
     "        process(data);\n"
-    "Pattern: Use condition variables for thread synchronization.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Do not use volatile as a substitute for mutex\n"
-    "- Do not assume operations are atomic without std::atomic\n"
+    "模式：使用条件变量进行线程同步。\n\n"
+    "禁止的做法：\n"
+    "- 不要用volatile替代mutex\n"
+    "- 不要假设操作是原子的，除非使用std::atomic\n"
 )
 
 CWE362_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_362_BODY)),
-    ("user", "Vulnerable code (CWE-362):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-362）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-416: Use After Free ───────────────────────────────────────────────────
 
 _416_BODY = (
-    "You are a security expert fixing CWE-416 (Use After Free).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: delete ptr; ptr->method();  // use after free\n"
-    "After:  delete ptr; ptr = nullptr;  // set to null after free\n"
-    "Pattern: Set pointer to nullptr immediately after delete.\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: free(buf); return buf[0];  // use after free\n"
-    "After:  char result = buf[0]; free(buf); return result;\n"
-    "Pattern: Extract needed values before freeing memory.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Never access memory after free, even for 'cleanup'\n"
-    "- Prefer std::unique_ptr to eliminate manual free entirely\n"
+    "你是一位安全专家，负责修复 CWE-416（释放后使用）。\n\n"
+    "修复示例1：\n"
+    "修复前：delete ptr; ptr->method();  // 释放后使用\n"
+    "修复后：delete ptr; ptr = nullptr;  // 释放后置空\n"
+    "模式：delete后立即将指针设为nullptr。\n\n"
+    "修复示例2：\n"
+    "修复前：free(buf); return buf[0];  // 释放后使用\n"
+    "修复后：char result = buf[0]; free(buf); return result;\n"
+    "模式：在释放内存之前先提取需要的值。\n\n"
+    "禁止的做法：\n"
+    "- 释放后永远不要访问内存，即使是'清理'操作\n"
+    "- 推荐用std::unique_ptr彻底避免手动free\n"
 )
 
 CWE416_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_416_BODY)),
-    ("user", "Vulnerable code (CWE-416):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-416）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-119: Buffer Overflow ──────────────────────────────────────────────────
 
 _119_BODY = (
-    "You are a security expert fixing CWE-119 (Buffer Overflow).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: strcpy(buf, input);  // no length check\n"
-    "After:  strncpy(buf, input, sizeof(buf)-1); buf[sizeof(buf)-1] = '\\0';\n"
-    "Pattern: Replace unsafe string functions with bounded variants.\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: memcpy(dst, src, user_len);  // user-controlled length\n"
-    "After:  size_t safe_len = std::min(user_len, sizeof(dst));\n"
+    "你是一位安全专家，负责修复 CWE-119（缓冲区溢出）。\n\n"
+    "修复示例1：\n"
+    "修复前：strcpy(buf, input);  // 没有长度检查\n"
+    "修复后：strncpy(buf, input, sizeof(buf)-1); buf[sizeof(buf)-1] = '\\0';\n"
+    "模式：用有界函数替换不安全的字符串函数。\n\n"
+    "修复示例2：\n"
+    "修复前：memcpy(dst, src, user_len);  // 用户可控的长度\n"
+    "修复后：size_t safe_len = std::min(user_len, sizeof(dst));\n"
     "        memcpy(dst, src, safe_len);\n"
-    "Pattern: Validate and bound user-controlled sizes before use.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- strncpy does not guarantee null termination - always add it\n"
-    "- Do not use sprintf - use snprintf instead\n"
+    "模式：使用前验证并限制用户可控的大小。\n\n"
+    "禁止的做法：\n"
+    "- strncpy不保证null结尾，必须手动添加\n"
+    "- 不要使用sprintf，改用snprintf\n"
 )
 
 CWE119_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_119_BODY)),
-    ("user", "Vulnerable code (CWE-119):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-119）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-190: Integer Overflow ─────────────────────────────────────────────────
 
 _190_BODY = (
-    "You are a security expert fixing CWE-190 (Integer Overflow).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: int size = a + b; char* buf = new char[size];\n"
-    "After:  if (a > INT_MAX - b) {{ throw std::overflow_error(\"overflow\"); }}\n"
+    "你是一位安全专家，负责修复 CWE-190（整数溢出）。\n\n"
+    "修复示例1：\n"
+    "修复前：int size = a + b; char* buf = new char[size];\n"
+    "修复后：if (a > INT_MAX - b) {{ throw std::overflow_error(\"溢出\"); }}\n"
     "        int size = a + b; char* buf = new char[size];\n"
-    "Pattern: Check for overflow before arithmetic operations.\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: uint32_t len = data_len * item_size;\n"
-    "After:  if (item_size != 0 && data_len > UINT32_MAX / item_size)\n"
+    "模式：算术运算前检查是否会溢出。\n\n"
+    "修复示例2：\n"
+    "修复前：uint32_t len = data_len * item_size;\n"
+    "修复后：if (item_size != 0 && data_len > UINT32_MAX / item_size)\n"
     "            return ERROR;\n"
     "        uint32_t len = data_len * item_size;\n"
-    "Pattern: Validate multiplication won't overflow before computing.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Do not cast to larger type after overflow has already occurred\n"
-    "- Use size_t for sizes, not int\n"
+    "模式：乘法运算前验证不会溢出。\n\n"
+    "禁止的做法：\n"
+    "- 不要在溢出已经发生后才转换为更大的类型\n"
+    "- 大小应使用size_t，不要用int\n"
 )
 
 CWE190_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_190_BODY)),
-    ("user", "Vulnerable code (CWE-190):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-190）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-134: Format String ────────────────────────────────────────────────────
 
 _134_BODY = (
-    "You are a security expert fixing CWE-134 (Format String).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: printf(user_input);  // user controls format string\n"
-    "After:  printf(\"%s\", user_input);  // fixed format string\n"
-    "Pattern: Always use a literal format string, never user-controlled.\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: fprintf(log, msg);  // user-controlled msg as format\n"
-    "After:  fprintf(log, \"%s\", msg);  // msg treated as data only\n"
-    "Pattern: Pass user input as argument, not as format string.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Never pass user-controlled strings as format argument to printf family\n"
-    "- This applies to sprintf, fprintf, snprintf, syslog, etc.\n"
+    "你是一位安全专家，负责修复 CWE-134（格式化字符串）。\n\n"
+    "修复示例1：\n"
+    "修复前：printf(user_input);  // 用户控制格式串\n"
+    "修复后：printf(\"%s\", user_input);  // 固定格式串\n"
+    "模式：始终使用字面量格式串，永远不要使用用户可控的格式串。\n\n"
+    "修复示例2：\n"
+    "修复前：fprintf(log, msg);  // 用户可控的msg作为格式串\n"
+    "修复后：fprintf(log, \"%s\", msg);  // msg只作为数据\n"
+    "模式：用户输入作为参数传入，而不是格式串。\n\n"
+    "禁止的做法：\n"
+    "- 永远不要把用户可控字符串作为printf系列函数的格式参数\n"
+    "- 这同样适用于sprintf、fprintf、snprintf、syslog等\n"
 )
 
 CWE134_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_134_BODY)),
-    ("user", "Vulnerable code (CWE-134):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-134）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── CWE-78: Command Injection ─────────────────────────────────────────────────
 
 _78_BODY = (
-    "You are a security expert fixing CWE-78 (Command Injection).\n\n"
-    "REPAIR EXAMPLE 1:\n"
-    "Before: system((\"ls \" + user_input).c_str());\n"
-    "After:  // Use execv with argument array instead of system()\n"
+    "你是一位安全专家，负责修复 CWE-78（命令注入）。\n\n"
+    "修复示例1：\n"
+    "修复前：system((\"ls \" + user_input).c_str());\n"
+    "修复后：// 用execv加参数数组代替system()\n"
     "        const char* args[] = {{\"ls\", user_input.c_str(), nullptr}};\n"
     "        execv(\"/bin/ls\", (char**)args);\n"
-    "Pattern: Use execv/execve with separate argument arrays, never system().\n\n"
-    "REPAIR EXAMPLE 2:\n"
-    "Before: popen((cmd + param).c_str(), \"r\");\n"
-    "After:  // Whitelist validation before use\n"
+    "模式：用execv/execve加独立参数数组，永远不要用system()。\n\n"
+    "修复示例2：\n"
+    "修复前：popen((cmd + param).c_str(), \"r\");\n"
+    "修复后：// 使用前做白名单验证\n"
     "        if (!isValidParam(param)) {{ return ERROR; }}\n"
     "        popen((cmd + param).c_str(), \"r\");\n"
-    "Pattern: Whitelist-validate all user input before shell use.\n\n"
-    "ANTI-PATTERNS TO AVOID:\n"
-    "- Never use system() or popen() with user-controlled input\n"
-    "- Blacklist filtering is insufficient - use whitelist only\n"
+    "模式：所有用户输入在用于shell之前做白名单验证。\n\n"
+    "禁止的做法：\n"
+    "- 永远不要将用户可控输入用于system()或popen()\n"
+    "- 黑名单过滤不够，只用白名单\n"
 )
 
 CWE78_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_78_BODY)),
-    ("user", "Vulnerable code (CWE-78):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（CWE-78）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 
 # ── 通用修复Prompt（CWE未知时使用）─────────────────────────────────────────────
 
 _GENERIC_BODY = (
-    "You are a security expert fixing a code vulnerability.\n\n"
-    "Analyze the vulnerability report carefully and generate the minimal fix.\n"
-    "Focus on eliminating the root cause without changing the function's semantics.\n\n"
-    "GENERAL REPAIR PRINCIPLES:\n"
-    "1. Fix the specific vulnerability, do not rewrite the entire function\n"
-    "2. Add bounds checks, null checks, or synchronization as needed\n"
-    "3. Prefer standard library safe functions over manual implementations\n"
-    "4. Ensure the fix does not introduce new vulnerabilities\n"
+    "你是一位安全专家，负责修复代码漏洞。\n\n"
+    "仔细分析漏洞报告并生成最小化修复。\n"
+    "重点消除根因，不改变函数的语义。\n\n"
+    "通用修复原则：\n"
+    "1. 只修复具体的漏洞，不要重写整个函数\n"
+    "2. 根据需要添加边界检查、空值检查或同步机制\n"
+    "3. 优先使用标准库的安全函数，而不是手动实现\n"
+    "4. 确保修复不会引入新漏洞\n"
 )
 
 GENERIC_REPAIR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _sys(_GENERIC_BODY)),
-    ("user", "Vulnerable code ({cwe}):\n```\n{code}\n```\n\n"
-             "Vulnerability report: {vulnerability_report}\n"
-             "Vulnerable lines: {vulnerable_lines}"),
+    ("user", "有漏洞的代码（{cwe}）：\n```\n{code}\n```\n\n"
+             "漏洞报告：{vulnerability_report}\n"
+             "漏洞行：{vulnerable_lines}"),
 ])
 
 

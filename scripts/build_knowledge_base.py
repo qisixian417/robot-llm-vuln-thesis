@@ -47,18 +47,18 @@ def get_llm():
     )
 
 
-KNOWLEDGE_PROMPT = """You are a senior security analyst. Analyze the following vulnerable code snippet and extract structured knowledge.
+KNOWLEDGE_PROMPT = """你是一位资深安全分析师。分析以下有漏洞的代码片段，提取结构化知识。
 
-The vulnerability is classified as: {cwe_id}
+漏洞类型：{cwe_id}
 
-Extract knowledge along 4 dimensions. Be specific, technical, and concise.
+沿4个维度提取知识，要求具体、专业、简洁。
 
-1. **functional_semantics**: What is this function/code SUPPOSED to do? (1 sentence, action verb)
-2. **root_cause**: Why is this code unsafe? Explain the underlying flaw mechanism. (2 sentences max, technical detail)
-3. **trigger_condition**: What input pattern, attacker-controlled state, or runtime condition triggers the vulnerability? (1 sentence, concrete)
-4. **fix_pattern**: How should this be fixed? Provide an actionable fix strategy. (1-2 sentences, concrete API or check)
+1. **functional_semantics**（功能语义）：这段代码/函数应该做什么？（1句话，以动词开头）
+2. **root_cause**（根因）：为什么这段代码不安全？解释底层缺陷机制。（最多2句话，技术细节）
+3. **trigger_condition**（触发条件）：什么输入模式、攻击者可控状态或运行时条件会触发漏洞？（1句话，具体）
+4. **fix_pattern**（修复模式）：应该如何修复？提供可操作的修复策略。（1-2句话，具体的API或检查方式）
 
-Output STRICTLY the following JSON, no markdown fences, no preamble:
+严格输出以下JSON，不要markdown代码块，不要其他内容：
 {{
   "functional_semantics": "...",
   "root_cause": "...",
@@ -66,7 +66,7 @@ Output STRICTLY the following JSON, no markdown fences, no preamble:
   "fix_pattern": "..."
 }}
 
-Vulnerable code ({language}):
+有漏洞的代码（{language}）：
 ```
 {code}
 ```

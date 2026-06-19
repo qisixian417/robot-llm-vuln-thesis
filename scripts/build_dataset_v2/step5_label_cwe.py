@@ -24,40 +24,40 @@ TARGET_CWES = [
     "CWE-416", "CWE-190", "CWE-134", "CWE-78"
 ]
 
-PROMPT = """You are a C/C++ and Python security expert specializing in memory safety and vulnerability analysis.
+PROMPT = """你是一位专注于内存安全和漏洞分析的C/C++和Python安全专家。
 
-Commit message: {message}
+提交信息：{message}
 
-Vulnerable code:
+有漏洞的代码：
 ```
 {code}
 ```
 
-This code contains a security vulnerability. Classify it into EXACTLY ONE of these categories based on the most prominent vulnerability pattern:
+这段代码包含安全漏洞。根据最突出的漏洞模式，将其归入以下类别之一：
 
-- CWE-476: Null Pointer Dereference — pointer used without NULL check, potential crash
-- CWE-401: Memory Leak — allocated memory not freed, resource leak
-- CWE-362: Race Condition — shared resource accessed without proper synchronization/locking
-- CWE-416: Use After Free — memory accessed after being freed/deallocated
-- CWE-119: Buffer Overflow — buffer read/write beyond bounds (includes stack/heap overflow)
-- CWE-190: Integer Overflow — arithmetic overflow, unsigned wrap-around
-- CWE-134: Format String — user-controlled format string in printf/sprintf
-- CWE-78: Command Injection — user input passed unsanitized to shell command
+- CWE-476：空指针解引用 — 指针未做NULL检查就使用，可能导致崩溃
+- CWE-401：内存泄漏 — 分配的内存没有释放，资源泄漏
+- CWE-362：竞态条件 — 共享资源在没有正确同步/加锁的情况下被访问
+- CWE-416：释放后使用 — 内存被释放后仍然被访问
+- CWE-119：缓冲区溢出 — 缓冲区读写超出边界（包括栈/堆溢出）
+- CWE-190：整数溢出 — 算术溢出、无符号整数回绕
+- CWE-134：格式化字符串 — printf/sprintf中使用了用户可控的格式串
+- CWE-78：命令注入 — 用户输入未经过滤直接传给shell命令
 
-Decision rules:
-- If you see missing NULL check before pointer dereference → CWE-476
-- If you see malloc/new without corresponding free/delete → CWE-401
-- If you see shared variable accessed without mutex/lock → CWE-362
-- If you see pointer used after delete/free → CWE-416
-- If you see array access without bounds check or strcpy/memcpy → CWE-119
-- If you see integer arithmetic that could overflow → CWE-190
-- If commit message mentions "fix crash", "null pointer", "dereference" → likely CWE-476
-- If commit message mentions "leak", "memory" → likely CWE-401
-- If commit message mentions "race", "lock", "concurrent" → likely CWE-362
+判断规则：
+- 指针解引用前缺少NULL检查 → CWE-476
+- malloc/new之后没有对应的free/delete → CWE-401
+- 共享变量访问没有mutex/lock保护 → CWE-362
+- 指针在delete/free后仍被使用 → CWE-416
+- 数组访问没有边界检查，或使用了strcpy/memcpy → CWE-119
+- 整数运算可能溢出 → CWE-190
+- 提交信息提到"fix crash"、"null pointer"、"dereference" → 可能是CWE-476
+- 提交信息提到"leak"、"memory" → 可能是CWE-401
+- 提交信息提到"race"、"lock"、"concurrent" → 可能是CWE-362
 
-You MUST choose one. Pick the BEST match even if uncertain.
+你必须选择一个。即使不确定也要选择最匹配的。
 
-Reply with ONLY the CWE ID (e.g., "CWE-476"). No explanation. No other text."""
+只回复CWE ID（例如"CWE-476"），不要解释，不要其他内容。"""
 
 
 def load_jsonl(path):
